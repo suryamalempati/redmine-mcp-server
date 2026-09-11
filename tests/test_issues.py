@@ -163,6 +163,24 @@ class TestCreateIssue:
         assert body["issue"]["estimated_hours"] == 5.0
 
     @respx.mock
+    async def test_start_and_due_date_included_in_body(self, call_tool):
+        import json
+
+        route = respx.post("http://redmine.example.com/issues.json").mock(
+            return_value=httpx.Response(201, json={"issue": {"id": 1}})
+        )
+        await call_tool(
+            "create_issue",
+            project_id=1,
+            subject="Test",
+            start_date="2026-01-01",
+            due_date="2026-01-31",
+        )
+        body = json.loads(route.calls[0].request.content)
+        assert body["issue"]["start_date"] == "2026-01-01"
+        assert body["issue"]["due_date"] == "2026-01-31"
+
+    @respx.mock
     async def test_returns_validation_error_from_redmine(self, call_tool):
         respx.post("http://redmine.example.com/issues.json").mock(
             return_value=httpx.Response(
