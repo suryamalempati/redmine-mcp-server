@@ -1,6 +1,6 @@
 # Redmine MCP Server
 
-An MCP (Model Context Protocol) server that connects AI assistants like [Kiro](https://kiro.dev) to your Redmine instance. It exposes 15 tools covering Issues, Projects, and Search — allowing your AI assistant to create issues, update projects, search across resources, and more, all through natural conversation.
+An MCP (Model Context Protocol) server that connects AI assistants like [Kiro](https://kiro.dev) to your Redmine instance. It exposes 18 tools covering Issues, Projects, Time Entries, and Search — allowing your AI assistant to create issues, update projects, search across resources, and more, all through natural conversation.
 
 ## What it does
 
@@ -18,7 +18,7 @@ The server handles authentication, pagination, input validation, and error handl
 
 | Domain | Tools |
 |--------|-------|
-| Issues | list, get, create, update, delete, add watcher, remove watcher |
+| Issues | list, get, create, update, update note, delete, add watcher, remove watcher |
 | Projects | list, get, create, update, delete, archive, unarchive |
 | Search | full-text search across all Redmine resources |
 

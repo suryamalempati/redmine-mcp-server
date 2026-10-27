@@ -275,6 +275,87 @@ class TestUpdateIssue:
         assert "done_ratio" in result["error"]
 
 
+class TestUpdateIssueNote:
+    @respx.mock
+    async def test_updates_note_successfully(self, call_tool):
+        route = respx.put("http://redmine.example.com/journals/7.json").mock(
+            return_value=httpx.Response(204)
+        )
+        result = await call_tool(
+            "update_issue_note", journal_id=7, notes="Corrected text"
+        )
+        assert result["status"] == "success"
+        assert result["journal_id"] == 7
+        assert route.called
+
+    @respx.mock
+    async def test_notes_sent_under_journal_key(self, call_tool):
+        import json
+
+        route = respx.put("http://redmine.example.com/journals/7.json").mock(
+            return_value=httpx.Response(204)
+        )
+        await call_tool("update_issue_note", journal_id=7, notes="New body")
+        body = json.loads(route.calls[0].request.content)
+        assert body["journal"]["notes"] == "New body"
+        assert "private_notes" not in body["journal"]
+
+    @respx.mock
+    async def test_private_notes_included_when_set(self, call_tool):
+        import json
+
+        route = respx.put("http://redmine.example.com/journals/7.json").mock(
+            return_value=httpx.Response(204)
+        )
+        await call_tool(
+            "update_issue_note", journal_id=7, notes="Secret", private_notes=True
+        )
+        body = json.loads(route.calls[0].request.content)
+        assert body["journal"]["private_notes"] is True
+
+    async def test_rejects_non_positive_journal_id(self, call_tool):
+        result = await call_tool("update_issue_note", journal_id=0, notes="x")
+        assert "error" in result
+        assert "positive integer" in result["error"]
+
+    async def test_rejects_empty_notes_without_allow_delete(self, call_tool):
+        result = await call_tool("update_issue_note", journal_id=7, notes="   ")
+        assert "error" in result
+        assert "allow_delete" in result["error"]
+
+    @respx.mock
+    async def test_empty_notes_allowed_with_allow_delete(self, call_tool):
+        import json
+
+        route = respx.put("http://redmine.example.com/journals/7.json").mock(
+            return_value=httpx.Response(204)
+        )
+        result = await call_tool(
+            "update_issue_note", journal_id=7, notes="", allow_delete=True
+        )
+        assert result["status"] == "success"
+        body = json.loads(route.calls[0].request.content)
+        assert body["journal"]["notes"] == ""
+
+    @respx.mock
+    async def test_returns_not_found_error(self, call_tool):
+        respx.put("http://redmine.example.com/journals/999.json").mock(
+            return_value=httpx.Response(404)
+        )
+        result = await call_tool("update_issue_note", journal_id=999, notes="x")
+        assert "error" in result
+        assert result["status_code"] == 404
+
+    @respx.mock
+    async def test_returns_permission_error(self, call_tool):
+        respx.put("http://redmine.example.com/journals/7.json").mock(
+            return_value=httpx.Response(403)
+        )
+        result = await call_tool("update_issue_note", journal_id=7, notes="x")
+        assert "error" in result
+        assert result["status_code"] == 403
+
+
 class TestDeleteIssue:
     @respx.mock
     async def test_deletes_successfully(self, call_tool):

@@ -287,6 +287,60 @@ def register_issue_tools(mcp: FastMCP, client: RedmineClient) -> None:
         return {"status": "success", "issue_id": issue_id}
 
     @mcp.tool()
+    async def update_issue_note(
+        journal_id: int,
+        notes: str,
+        private_notes: bool | None = None,
+        allow_delete: bool = False,
+    ) -> dict:
+        """Update the text of an existing note (journal) on an issue.
+
+        Unlike ``update_issue`` (which only appends a NEW note), this edits a
+        note that was already posted, identified by its journal ID. Find the
+        journal ID with ``get_issue(issue_id, include="journals")`` — each entry
+        in the ``journals`` array has an ``id``.
+
+        Requires Redmine 5.0+ and permission to edit journal notes. The server
+        returns 204 No Content on success.
+
+        Args:
+            journal_id: The ID of the note (journal) to edit. This is the
+                journal's own ID, NOT the issue ID.
+            notes: The new note text. Replaces the existing note content.
+            private_notes: Set the note as private. Requires permission to set
+                notes as private. Omit to leave the current privacy unchanged.
+            allow_delete: Redmine deletes a journal when ``notes`` is set to an
+                empty string and the journal has no attribute-change details.
+                To guard against accidental data loss, empty ``notes`` is
+                rejected unless this is explicitly set to True.
+        """
+        if not isinstance(journal_id, int) or isinstance(journal_id, bool) or journal_id <= 0:
+            return {"error": "journal_id must be a positive integer", "details": []}
+
+        if notes is None:
+            return {"error": "notes is required", "details": []}
+
+        if not notes.strip() and not allow_delete:
+            return {
+                "error": "notes is empty. Redmine deletes a note when its text "
+                "is cleared. Set allow_delete=True to confirm deletion.",
+                "details": [],
+            }
+
+        journal_data: dict = {"notes": notes}
+        if private_notes is not None:
+            journal_data["private_notes"] = private_notes
+
+        try:
+            await client.put(
+                f"/journals/{journal_id}.json", {"journal": journal_data}
+            )
+        except RedmineError as e:
+            return e.to_dict()
+
+        return {"status": "success", "journal_id": journal_id}
+
+    @mcp.tool()
     async def delete_issue(issue_id: int) -> dict:
         """Delete an issue permanently."""
         if not isinstance(issue_id, int) or issue_id <= 0:
